@@ -63,6 +63,7 @@ docker compose up --build
 
 Frontend:
 http://localhost:5173
+for admin its - http://localhost:5173/admin
 
 Backend:
 http://localhost:5000
@@ -79,6 +80,7 @@ docker exec -it flight-mongodb mongorestore /backup
 ```
 
 ## API Endpoints
+
 
 ### Flights
 
