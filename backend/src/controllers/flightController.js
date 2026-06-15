@@ -1,3 +1,5 @@
+
+
 import mongoose from "mongoose";
 
 import * as flightService from "../services/flightService.js";
@@ -19,6 +21,8 @@ export const getFlights = async (req, res, next) => {
         next(error);
     }
 };
+
+
 
 export const getFlight = async (req, res, next) => {
     try {
@@ -58,9 +62,8 @@ export const updateStatus = async (req, res, next) => {
             });
         }
 
-        const existingFlight = await flightService.getFlightById(
-            req.params.id
-        );
+        const existingFlight =
+            await flightService.getFlightById(req.params.id);
 
         if (!existingFlight) {
             return res.status(404).json({
@@ -69,10 +72,6 @@ export const updateStatus = async (req, res, next) => {
             });
         }
 
-        /*
-         * Prevent duplicate notifications
-         * if nothing actually changed.
-         */
         if (
             existingFlight.status === status &&
             (!gate || existingFlight.gate === gate)
@@ -83,31 +82,35 @@ export const updateStatus = async (req, res, next) => {
             });
         }
 
-        const flight = await flightService.updateFlightStatus(
-            req.params.id,
-            status,
-            reason,
-            gate
-        );
-
-        const subscribers =
-            await subscriptionService.getFlightSubscribers(
-                flight._id
+        const flight =
+            await flightService.updateFlightStatus(
+                req.params.id,
+                status,
+                reason,
+                gate
             );
 
-        /*
-         * Socket failures should not
-         * break the API.
-         */
         let io = null;
 
         try {
             io = getIO();
         } catch {
             console.warn(
-                "Socket.IO not initialized. Skipping real-time notifications."
+                "Socket.IO not initialized."
             );
         }
+
+        /*
+         * Update everyone viewing dashboard
+         */
+        if (io) {
+            io.emit("flightUpdated", flight);
+        }
+
+        const subscribers =
+            await subscriptionService.getFlightSubscribers(
+                flight._id
+            );
 
         const notifications = await Promise.all(
             subscribers.map(async (subscriber) => {
@@ -131,7 +134,6 @@ export const updateStatus = async (req, res, next) => {
                         `user:${subscriber.userId}`
                     ).emit("notification", {
                         type: "FLIGHT_UPDATE",
-
                         notification,
                     });
                 }
@@ -142,9 +144,11 @@ export const updateStatus = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            message: "Flight status updated successfully",
+            message:
+                "Flight status updated successfully",
             data: flight,
-            notificationsCreated: notifications.length,
+            notificationsCreated:
+                notifications.length,
         });
     } catch (error) {
         next(error);

@@ -8,16 +8,28 @@ export const subscribeToFlight = async (
     try {
         const { userId, flightId } = req.body;
 
-        const subscription =
-            await subscriptionService.subscribe(
-                userId,
-                flightId
-            );
+        try {
+            const subscription =
+                await subscriptionService.subscribe(
+                    userId,
+                    flightId
+                );
 
-        res.status(201).json({
-            success: true,
-            data: subscription,
-        });
+            return res.status(201).json({
+                success: true,
+                data: subscription,
+            });
+        } catch (error) {
+            if (error.code === 11000) {
+                return res.status(200).json({
+                    success: true,
+                    alreadySubscribed: true,
+                    message: "Already subscribed",
+                });
+            }
+
+            throw error;
+        }
     } catch (error) {
         next(error);
     }
